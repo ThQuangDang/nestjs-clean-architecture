@@ -1,0 +1,60 @@
+import { ApiProperty } from '@nestjs/swagger'
+
+import { Transform, Type } from 'class-transformer'
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+  MinLength,
+} from 'class-validator'
+
+import { ISearchChatParam } from '@domain/repositories/chat.repository.interface'
+
+export class GetListChatDto implements ISearchChatParam {
+  @ApiProperty({
+    required: false,
+    minLength: 3,
+  })
+  @MinLength(3)
+  @IsString()
+  @IsOptional()
+  search?: string
+
+  @ApiProperty({
+    required: false,
+    type: Boolean,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isRead?: boolean
+
+  @ApiProperty({
+    required: false,
+    enum: ['ASC', 'DESC'],
+  })
+  @Transform(({ value }: { value: string }) => value.toUpperCase())
+  @IsIn(['ASC', 'DESC'])
+  @IsOptional()
+  sortOrder?: 'ASC' | 'DESC' = 'DESC'
+
+  @ApiProperty({
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number = 10
+
+  @ApiProperty({
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  offset?: number = 0
+}

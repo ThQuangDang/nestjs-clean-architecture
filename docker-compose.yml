@@ -1,0 +1,43 @@
+version: '3.5'
+
+services:
+  db:
+    image: postgres
+    container_name: app-database
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    volumes:
+      - db_notused:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+  redis:
+    container_name: redis_container
+    image: redis:latest
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --loglevel warning
+    volumes:
+      - db_notused:/var/lib/redis/data
+  app:
+    build:
+      context: .
+      target: development
+      dockerfile: Dockerfile
+    container_name: app-api
+    command: bash -c "cp -r /home/node_modules /home/app/ && npm run start:dev"
+    env_file:
+      - .env
+    ports:
+      - '3000:3000'
+    depends_on:
+      - db
+    volumes:
+      - .:/home/app
+      - ./node_modules:/home/app/node_modules
+
+volumes:
+  db_notused:

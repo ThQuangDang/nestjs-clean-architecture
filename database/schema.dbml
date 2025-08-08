@@ -1,0 +1,261 @@
+Table users {
+  id UUID [primary key, note: 'ID định danh cho user']
+  full_name VARCHAR(255) [not null, note: 'Họ và tên của user'] 
+  email VARCHAR(255) [unique, not null, note: 'Email của user duy nhất']
+  password VARCHAR(255) [not null, note: 'Password của user đã được mã hóa']
+  role ENUM('admin', 'provider', 'client') [not null, note: 'Phân loại user']
+  status ENUM('pending', 'approved', 'rejected') [default: 'pending', note: 'Trạng thái của user']
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian tạo user']
+  updated_at TIMESTAMP [note: 'Thời gian update user, tự động cập nhật khi có thay đổi']
+
+  note: 'Lưu thông tin người dùng. Một user có thể là admin, provider hoặc client.'
+}
+
+Table providers {
+  id UUID [primary key, note: 'ID định danh cho provider']
+  user_id UUID [not null, unique, ref: - users.id, note: 'FK, liên kết với user.id, 1:1 với users'] 
+  business_name VARCHAR(255) [not null, note: 'Tên nhà cung cấp']
+  description TEXT [note: 'Mô tả về nhà cung cấp']
+  rating DECIMAL(2,1) [default: 0, note: 'Đánh giá trung bình về nhà cung cấp']
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian tạo nhà cung cấp']
+  updated_at TIMESTAMP [default: 'now()', note: 'Thời gian cập nhập nhà cung cấp'] 
+
+  indexes {
+    user_id [unique]
+    business_name
+  }
+
+  note: 'Lưu thông tin nhà cung cấp dịch vụ. Liên kết 1:1 với users.'
+}
+
+Table clients {
+  id UUID [primary key, note: 'ID định danh cho client']
+  user_id UUID [not null, unique, ref: > users.id, note: 'FK, liên kết với user.id, 1:1 với users'] 
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian tạo client'] 
+  updated_at TIMESTAMP [note: 'Thời gian cập nhật client, tự động cập nhật khi có thay đổi']
+
+  note: 'Lưu thông tin khách hàng. Liên kết 1:1 với users.'
+}
+
+Table services {
+  id UUID [primary key, note: 'ID định danh cho service'] 
+  provider_id UUID [not null, ref: > providers.id, note: 'FK, liên kết với provider.id, Many:1 với provider'] 
+  name VARCHAR(255) [not null, note: 'Tên dịch vụ'] 
+  description TEXT [note:'Mô tả dịch vụ']
+  price DECIMAL(10,2) [not null, note: 'Giá dịch vụ'] 
+  status ENUM('active', 'inactive') [default: 'active', note: 'Trạng thái dịch vụ']
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian tạo dịch vụ'] 
+  updated_at TIMESTAMP [note: 'Thời gian cập nhật dịch vụ, tự động cập nhật khi có thay đổi']
+
+  indexes {
+    provider_id
+    name
+  }
+
+  note: 'Lưu thông tin dịch vụ do nhà cung cấp tạo'
+}
+
+Table appointments {
+  id UUID [primary key, note: 'ID định danh cho appointments'] 
+  client_id UUID [not null, ref: > clients.id, note: 'FK, liên kết với client.id, Many:1 với client'] 
+  provider_id UUID [not null, ref: > providers.id, note: 'FK, liên kết với provider.id, Many:1 với provider']
+  service_id UUID [not null, ref: > services.id, note: 'FK, liên kết với service.id, Many:1 với service'] 
+  appointment_time TIMESTAMP [not null, note: 'Thời gian đặt lịch hẹn'] 
+  status ENUM('pending', 'confirmed', 'completed', 'canceled') [default: 'pending', note: 'Trạng thái lịch hẹn'] 
+  payment_status ENUM('pending', 'paid', 'refunded') [default: 'pending', note: 'Trạng thái thanh toán lịch hẹn'] 
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian tạo lịch hẹn'] 
+  updated_at TIMESTAMP [note: 'Thời gian cập nhật lịch hẹn, tự động cập nhật khi có thay đổi']
+
+  indexes {
+    client_id
+    provider_id
+    service_id
+    appointment_time
+  }
+
+  note: 'Lưu thông tin lịch hẹn giữa khách hàng và nhà cung cấp'
+}
+
+Table payments {
+  id UUID [primary key, note: 'ID định danh cho payments'] 
+  appointment_id UUID [not null, ref: - appointments.id, note: 'FK, liên kết với appointment.id, 1:1 với payment'] 
+  client_id UUID [not null, ref: > clients.id, note: 'FK, liên kết với client.id, Many:1 với client'] 
+  provider_id UUID [not null, ref: > providers.id, note: 'FK, liên kết với provider.id, Many:1 với provider'] 
+  amount DECIMAL(10,2) [not null, note: 'Số tiền thanh toán'] 
+  status ENUM('pending', 'completed', 'failed', 'refunded') [default: 'pending', note: 'Trạng thái thanh toán']
+  payment_method ENUM('stripe', 'paypal') [default: 'stripe', note: 'Phương thức thanh toán'] 
+  transaction_id VARCHAR(255) [unique, note: 'Mã giao dịch'] 
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian tạo thanh toán'] 
+  updated_at TIMESTAMP [note: 'Thời gian cập nhật thanh toán, tự động cập nhật khi có thay đổi']
+
+  indexes {
+    provider_id
+    client_id
+    transaction_id [unique]
+  }
+
+  note: 'Lưu thông tin thanh toán cho lịch hẹn'
+}
+
+Table invoices {
+  id UUID [primary key, note: 'ID định danh cho invoices']
+  appointment_id UUID [not null, ref: - appointments.id, note: 'FK, liên kết với appointments.id (Mỗi hóa đơn gắn với một cuộc hẹn)'] 
+  provider_id UUID [not null, ref: > providers.id, note: 'FK, liên kết với providers.id (Hóa đơn do provider tạo)'] 
+  client_id UUID [not null, ref: > clients.id, note: 'FK, liên kết với clients.id (Khách hàng nhận hóa đơn)'] 
+  total_amount DECIMAL(10,2) [not null, note: 'Tổng số tiền trong hóa đơn']
+  status ENUM('pending', 'paid', 'canceled') [default: 'pending', note: 'Trạng thái hóa đơn'] 
+  issued_date TIMESTAMP [default: 'now()', note: 'Ngày phát hành hóa đơn'] 
+  due_date TIMESTAMP [note: 'Ngày hết hạn hóa đơn (nếu có)']
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian tạo hóa đơn'] 
+  updated_at TIMESTAMP [note: 'Thời gian cập nhật hóa đơn, tự động cập nhật khi có thay đổi']
+
+  indexes {
+    provider_id
+    client_id
+  }
+
+  note: 'Lưu thông tin hóa đơn liên quan đến cuộc hẹn. Liên kết 1:1 với appointments.'
+}
+
+Table revenues {
+  id UUID [primary key, note: 'ID định danh cho revenues']
+  provider_id UUID [not null, ref: > providers.id, note: 'FK, liên kết với providers.id (Doanh thu của provider nào)'] 
+  total_income DECIMAL(10,2) [not null, note: 'Tổng doanh thu trước khi trừ hoa hồng'] 
+  commission DECIMAL(10,2) [not null, note: 'Phí hoa hồng hệ thống trừ'] 
+  net_income DECIMAL(10,2) [not null, note: 'Tổng thu nhập thực tế sau khi trừ hoa hồng'] 
+  month YEAR_MONTH [not null, note: 'Tháng tính doanh thu'] 
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian tạo doanh thu']
+  updated_at TIMESTAMP [note: 'Thời gian cập nhật doanh thu, tự động cập nhật khi có thay đổi'] 
+
+  indexes {
+    provider_id
+    month
+    (provider_id, month)
+  }
+
+  note: 'Lưu thông tin doanh thu hàng tháng của provider, bao gồm tổng thu nhập, hoa hồng và thu nhập hàng tháng.'
+}
+
+Table reviews {
+  id UUID [primary key, note: 'ID định danh cho review'] 
+  client_id UUID [not null, ref: > clients.id, note: 'FK, khách hàng đã đánh giá'] 
+  provider_id UUID [not null, ref: > providers.id, note: 'FK, nhà cung cấp được đánh giá'] 
+  service_id UUID [not null, ref: > services.id, note: 'FK, dịch vụ được đánh giá'] 
+  rating DECIMAL(2,1) [not null, note: 'Điểm đánh giá của khách hàng'] 
+  comment TEXT [note: 'Nhận xét của khách hàng']
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian tạo đánh giá'] 
+  updated_at TIMESTAMP [note: 'Thời gian cập nhật đánh giá, tự động cập nhật khi có thay đổi']
+
+  indexes {
+    client_id
+    provider_id
+    service_id
+    (provider_id, service_id)
+  }
+
+  note: 'Lưu đánh giá của khách hàng về dịch vụ'
+}
+
+Table favorites {
+  id UUID [primary key, note: 'ID định danh cho favorite'] 
+  client_id UUID [not null, ref: > clients.id, note: 'FK, khách hàng đã lưu dịch vụ yêu thích'] 
+  service_id UUID [not null, ref: > services.id, note: 'FK, dịch vụ được lưu yêu thích'] 
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian thêm vào danh sách yêu thích'] 
+  updated_at TIMESTAMP [note: 'Thời gian cập nhật danh sách yêu thích, tự động cập nhật khi có thay đổi'] 
+
+  indexes {
+    client_id
+    service_id
+    (client_id, service_id) [unique]
+  }
+
+  note: 'Lưu danh sách dịch vụ yêu thích của khách hàng.'
+}
+
+Table notifications {
+  id UUID [primary key, note: 'ID định danh cho notification'] 
+  user_id UUID [not null, ref: > users.id, note: 'FK, người nhận thông báo'] 
+  type ENUM('email', 'web', 'sms') [not null, default: 'web', note: 'Kênh gửi thông báo']
+  title VARCHAR(255) [not null, note: 'Tiêu đề thông báo'] 
+  message TEXT [not null, note: 'Nội dung thông báo'] 
+  status ENUM('unread', 'read') [default: 'unread', note: 'Trạng thái thông báo'] 
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian tạo thông báo']
+  updated_at TIMESTAMP [note: 'Thời gian cập nhật thông báo, tự động cập nhật khi có thay đổi']
+
+  indexes {
+    user_id
+    type
+  }
+
+  note: 'Lưu thông báo của hệ thống gửi đến người dùng.'
+}
+
+Table promotions {
+  id UUID [primary key, note: 'ID định danh cho khuyến mãi'] 
+  provider_id UUID [not null, ref: > providers.id, note: 'FK, nhà cung cấp tạo khuyến mãi'] 
+  name VARCHAR(225) [not null, note: 'Tên chương trình khuyến mãi'] 
+  discount DECIMAL(5,2) [not null, note: 'Mức giảm giá'] 
+  discount_code VARCHAR(225) [not null, unique, note: 'Mã giảm giá duy nhất'] 
+  max_usage INT [not null, note: 'Số lần sử dụng tối đa'] 
+  use_count INT [not null, default: 0, note: 'Số lần đã sử dụng'] 
+  start_date DATE [not null, note: 'Ngày bắt đầu khuyến mãi'] 
+  end_date DATE [not null, note: 'Ngày kết thúc khuyến mãi'] 
+  status ENUM('active', 'expired') [default: 'active', note: 'Trạng thái của khuyến mãi']
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian tạo khuyến mãi'] 
+
+  indexes {
+    provider_id
+    discount_code [unique]
+    (provider_id, status)
+  }
+
+  note: 'Lưu thông tin khuyến mãi của provider.'
+}
+
+Table promotions_services {
+  id UUID [primary key, note: 'ID định danh cho bảng liên kết'] 
+  promotion_id UUID [not null, ref: > promotions.id, note: 'FK, khuyến mãi được áp dụng'] 
+  service_id UUID [not null, ref: > services.id, note: 'FK, dịch vụ được áp dụng khuyến mãi'] 
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian thêm vào danh sách khuyến mãi'] 
+
+  indexes {
+    promotion_id
+    service_id
+    (promotion_id, service_id) [unique]
+  }
+
+  note: 'Bảng liên kết giữa khuyến mãi và dịch vụ. Một khuyến mãi có thể áp dụng cho nhiều dịch vụ và một dịch vụ có thể có nhiều khuyến mãi.'
+}
+
+Table promotion_usage {
+  id UUID [primary key, note: 'ID định danh cho lần sử dụng mã khuyến mãi'] 
+  promotion_id UUID [not null, ref: > promotions.id, note: 'FK, mã khuyến mãi đã sử dụng']
+  client_id UUID [not null, ref: > clients.id, note: 'FK, khách hàng sử dụng mã'] 
+  used_at TIMESTAMP [default: 'now()', note: 'Thời gian sử dụng mã'] 
+
+  indexes {
+    promotion_id
+    client_id
+    (promotion_id, client_id) [unique]
+  }
+
+  note: 'Lưu thông tin khách hàng đã sử dụng mã khuyến mãi.'
+}
+
+Table chats {
+  id UUID [primary key, note: 'ID định danh cho tin nhắn']
+  sender_id UUID [not null, ref: > users.id, note: 'FK, người gửi tin nhắn'] 
+  receiver_id UUID [not null, ref: > users.id, note: 'FK, người nhận tin nhắn'] 
+  message TEXT [note: 'Nội dung tin nhắn']
+  is_read BOOLEAN [default: false, note: 'Trạng thái đã đọc của tin nhắn']
+  created_at TIMESTAMP [default: 'now()', note: 'Thời gian gửi tin nhắn'] 
+  updated_at TIMESTAMP [note: 'Thời gian cập nhật tin nhắn, tự động cập nhật khi có thay đổi']
+
+  indexes {
+    sender_id
+    receiver_id
+    (sender_id, receiver_id)
+  }
+
+  note: 'Lưu lịch sử tin nhắn giữa người dùng và provider'
+}
